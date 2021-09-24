@@ -13,6 +13,7 @@ defmodule InteroperDemo.Application do
     children = [
       # Starts a worker by calling: InteroperDemo.Worker.start_link(arg)
       {Phoenix.PubSub, name: InteroperDemo.PubSub},
+      {InteroperDemo.Queue, []},
       {InteroperDemo.Socket, url}
     ]
 
