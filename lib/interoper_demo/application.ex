@@ -7,9 +7,13 @@ defmodule InteroperDemo.Application do
 
   @impl true
   def start(_type, _args) do
+    # url = "wss://stream.binance.com:9443/ws/btcusdt@trade"
+    url = "wss://stream.binance.com:9443/ws/ethbtc@trade"
+
     children = [
       # Starts a worker by calling: InteroperDemo.Worker.start_link(arg)
-      # {InteroperDemo.Worker, arg}
+      {Phoenix.PubSub, name: InteroperDemo.PubSub},
+      {InteroperDemo.Socket, url}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
