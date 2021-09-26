@@ -17,7 +17,7 @@ defmodule InteroperDemo.Broadway do
         transformer: {__MODULE__, :transform, []}
       ],
       processors: [default: [concurrency: 3]],
-      batchers: [default: [concurrency: 1, batch_size: 5, batch_timeout: :timer.seconds(1)]]
+      batchers: [default: [concurrency: 1, batch_size: 5, batch_timeout: :timer.seconds(5)]]
     )
   end
 

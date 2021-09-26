@@ -8,6 +8,7 @@ defmodule InteroperDemo.Queue do
 
   def start_link(arg), do: GenStage.start_link(__MODULE__, arg)
 
+  @impl GenStage
   def init(demand) when demand >= 0 do
     Phoenix.PubSub.subscribe(InteroperDemo.PubSub, "trade")
     {:producer, %{demand: demand, queue: Qex.new()}}
@@ -18,6 +19,7 @@ defmodule InteroperDemo.Queue do
     fetch_events(%{state | demand: demand + incoming_demand})
   end
 
+  @impl GenStage
   def handle_info(:fetch, state), do: fetch_events(state)
 
   def handle_info(event, %{queue: queue} = state) do
