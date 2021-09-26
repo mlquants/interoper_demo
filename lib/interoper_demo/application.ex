@@ -13,12 +13,10 @@ defmodule InteroperDemo.Application do
     children = [
       # Starts a worker by calling: InteroperDemo.Worker.start_link(arg)
       {Phoenix.PubSub, name: InteroperDemo.PubSub},
-      {InteroperDemo.Queue, []},
+      {InteroperDemo.Broadway, []},
       {InteroperDemo.Socket, url}
     ]
 
-    # See https://hexdocs.pm/elixir/Supervisor.html
-    # for other strategies and supported options
     opts = [strategy: :one_for_one, name: InteroperDemo.Supervisor]
     Supervisor.start_link(children, opts)
   end

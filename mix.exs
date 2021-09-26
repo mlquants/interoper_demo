@@ -23,7 +23,10 @@ defmodule InteroperDemo.MixProject do
       {:phoenix_pubsub, "~> 2.0.0"},
       {:jason, "~> 1.2.2"},
       {:websockex, "~> 0.4.3"},
-      {:qex, "~> 0.5"}
+      {:qex, "~> 0.5"},
+      {:gen_stage, "~> 1.1.1"},
+      {:broadway, "~> 1.0.0"},
+      {:credo, "~> 1.5", only: [:test, :dev], runtime: false}
     ]
   end
 end
