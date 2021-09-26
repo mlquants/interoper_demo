@@ -1,9 +1,18 @@
 defmodule InteroperDemo.Socket do
+  @moduledoc """
+  Opens a event-stream socket and broadcasts received events to the pub-sub
+  """
   use WebSockex
   alias InteroperDemo.PubSub
 
+  @enabled Application.compile_env!(:interoper_demo, [__MODULE__, :enabled])
+
   def start_link(url) do
-    WebSockex.start_link(url, __MODULE__, %{})
+    if @enabled do
+      WebSockex.start_link(url, __MODULE__, %{})
+    else
+      :ignore
+    end
   end
 
   @doc """
