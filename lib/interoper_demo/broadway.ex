@@ -17,7 +17,8 @@ defmodule InteroperDemo.Broadway do
         transformer: {__MODULE__, :transform, []}
       ],
       processors: [default: [concurrency: 3]],
-      batchers: [default: [concurrency: 1, batch_size: 100, batch_timeout: :timer.hours(1)]]
+      batchers: [default: [concurrency: 1, batch_size: 1_000_000, batch_timeout: :timer.minutes(1)]]
+      # batchers: [default: [concurrency: 1, batch_size: 100, batch_timeout: :timer.hours(1)]]
     )
   end
 
@@ -49,8 +50,12 @@ defmodule InteroperDemo.Broadway do
     |> Enum.map(fn %{"m" => buy} -> buy end)
     |> Enum.count(fn x -> x end)
 
+    # total_trades = length(batch)
+
     file = File.open!("test_ethusd.csv", [:append, :utf8])
-    row = [[open, high, low, close, volume, timestamp, buy_to_sell_ratio]]
+    _row = [[open, high, low, close, volume, timestamp, buy_to_sell_ratio #,
+    #  total_trades
+     ]]
     |> CSV.encode |> Enum.each(&IO.write(file, &1))
 
     messages
