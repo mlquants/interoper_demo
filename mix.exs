@@ -26,6 +26,7 @@ defmodule InteroperDemo.MixProject do
       {:qex, "~> 0.5"},
       {:gen_stage, "~> 1.1.1"},
       {:broadway, "~> 1.0.0"},
+      {:csv, "~> 2.4"},
       {:credo, "~> 1.5", only: [:test, :dev], runtime: false}
     ]
   end

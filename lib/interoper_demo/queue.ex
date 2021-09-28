@@ -23,7 +23,7 @@ defmodule InteroperDemo.Queue do
   def handle_info(:fetch, state), do: fetch_events(state)
 
   def handle_info(event, %{queue: queue} = state) do
-    Logger.info("Queue: received event #{event["t"]}, pushing to queue")
+    Logger.debug("Queue: received event #{event["t"]}, pushing to queue")
     {:noreply, [], %{state | queue: Qex.push(queue, event)}}
   end
 

@@ -17,7 +17,7 @@ defmodule InteroperDemo.Broadway do
         transformer: {__MODULE__, :transform, []}
       ],
       processors: [default: [concurrency: 3]],
-      batchers: [default: [concurrency: 1, batch_size: 5, batch_timeout: :timer.seconds(5)]]
+      batchers: [default: [concurrency: 1, batch_size: 100, batch_timeout: :timer.hours(1)]]
     )
   end
 
@@ -28,6 +28,31 @@ defmodule InteroperDemo.Broadway do
   def handle_batch(:default, messages, _batch_info, _context) do
     # do some batch processing here
     Logger.info("processing batch of #{length(messages)}")
+    batch = Enum.map(messages, fn e -> e.data end)
+
+    prices = batch |> Enum.map(fn %{"p" => price} -> String.to_float(price) end)
+
+    open = List.first(prices)
+    close = List.last(prices)
+    high = Enum.max(prices)
+    low = Enum.min(prices)
+
+    volume = batch
+    |> Enum.map(fn %{"p" => price, "q" => quantity} -> String.to_float(price) * String.to_float(quantity) end)
+    |> Enum.sum
+
+    timestamp = batch
+    |> Enum.map(fn %{"T" => t} -> t end)
+    |> List.first()
+
+    buy_to_sell_ratio = batch
+    |> Enum.map(fn %{"m" => buy} -> buy end)
+    |> Enum.count(fn x -> x end)
+
+    file = File.open!("test_ethusd.csv", [:append, :utf8])
+    row = [[open, high, low, close, volume, timestamp, buy_to_sell_ratio]]
+    |> CSV.encode |> Enum.each(&IO.write(file, &1))
+
     messages
   end
 
