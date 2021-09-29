@@ -7,14 +7,24 @@ defmodule InteroperDemo.Application do
 
   @impl true
   def start(_type, _args) do
-    # url = "wss://stream.binance.com:9443/ws/btcusdt@trade"
-    url = "wss://stream.binance.com:9443/ws/ethusdt@trade"
-    # url = "wss://stream.binance.com:9443/ws/ethbtc@trade"
+    # agg_type = "time"
+    agg_type = "size"
+    ticker = "ethusdt"
+    # ticker = "btcusdt"
+    # ticker = "ethbtc"
+    url = "wss://stream.binance.com:9443/ws/" <> ticker <> "@trade"
+    filepath = "test_" <> ticker <> "_" <> agg_type <> ".csv"
 
     children = [
       # Starts a worker by calling: InteroperDemo.Worker.start_link(arg)
       {Phoenix.PubSub, name: InteroperDemo.PubSub},
-      {InteroperDemo.Broadway, []},
+      {InteroperDemo.Broadway,
+       [
+         agg_type: agg_type,
+         ticker: ticker,
+         name: String.to_atom(ticker <> "_" <> agg_type),
+         filepath: filepath
+       ]},
       {InteroperDemo.Socket, url}
     ]
 
