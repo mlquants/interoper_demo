@@ -1,0 +1,179 @@
+<!-- livebook:{"autosave_interval_s":30} -->
+
+# Visualizing trades
+
+## Import plotting libraries
+
+```elixir
+Mix.install([
+  {:vega_lite, "~> 0.1.0"},
+  {:kino, "~> 0.3.0"}
+])
+```
+
+```elixir
+alias VegaLite, as: Vl
+```
+
+Start an elixir shell with a name attached to it using the following syntax:
+
+`iex --sname demo --cookie DEMO -S mix`
+
+and remotely connect to it using the following:
+
+`iex --remsh demo --sname dev`
+
+From a remotely connected shell, run the following to enable the notebook's connection to an original shell:
+
+`node()`
+
+and
+
+`Node.get_cookie()`
+
+Paste the results of the commands as inputs below:
+
+<!-- livebook:{"livebook_object":"cell_input","name":"Node","reactive":true,"type":"text","value":"demo@Anton"} -->
+
+<!-- livebook:{"livebook_object":"cell_input","name":"Cookie","reactive":true,"type":"text","value":"DEMO"} -->
+
+And now execute the code cell below, which will read the inputs, configure the cookie, and connect to the shell:
+
+```elixir
+node =
+  IO.gets("Node: ")
+  |> String.trim()
+  |> String.to_atom()
+
+cookie =
+  IO.gets("Cookie: ")
+  |> String.trim()
+  |> String.to_atom()
+
+Node.set_cookie(node, cookie)
+true = Node.connect(node)
+```
+
+Let us see the nodes that are currently connected to this session:
+
+```elixir
+Node.list(:connected)
+```
+
+Having successfully connected to a remote shell, let's try to see that we are able to get spot price of ETH:
+
+```elixir
+[{"price", price}] = :rpc.call(node, :ets, :lookup, [:ethusdt_size, "price"])
+price = String.to_float(price)
+```
+
+Now that we have access to ETS on a remote process, let's visualise the dynamics of trading!
+
+```elixir
+widget =
+  Vl.new(width: 600, height: 400, padding: 20)
+  |> Vl.repeat(
+    [layer: ["amount_usdt", "amount_eth"]],
+    Vl.new()
+    |> Vl.mark(:line)
+    |> Vl.encode_field(:x, "Timestamp", title: "Time", scale: [type: "time"])
+    |> Vl.encode_repeat(:y, :layer, type: :quantitative, title: "Amount of Currency in Account")
+    |> Vl.encode(:color, datum: [repeat: :layer], type: :nominal)
+  )
+  |> Kino.VegaLite.new()
+  |> tap(&Kino.render/1)
+
+Kino.VegaLite.periodically(widget, 50, 1, fn i ->
+  point =
+    (:rpc.call(node, :ets, :lookup, [:ethusdt_size, "amount_usdt"]) ++
+       :rpc.call(node, :ets, :lookup, [:ethusdt_size, "amount_eth"]) ++
+       :rpc.call(node, :ets, :lookup, [:ethusdt_size, "amount_borrowed_eth"]))
+    |> Enum.map(fn {name, value} -> {name, value} end)
+    |> Map.new()
+    |> Map.put("Timestamp", DateTime.to_string(DateTime.utc_now()))
+
+  Kino.VegaLite.push(widget, point, window: 1000)
+  {:cont, i + 1}
+end)
+```
+
+```elixir
+time = Time.truncate(Time.utc_now(), :millisecond)
+datetime_object = Map.new()
+datetime_object = Map.put(datetime_object, :hour, time.hour)
+datetime_object = Map.put(datetime_object, :minute, time.minute)
+datetime_object = Map.put(datetime_object, :second, time.second)
+
+datetime_object =
+  Map.put(
+    datetime_object,
+    :millisecond,
+    Tuple.to_list(time.microsecond) |> List.first() |> Kernel./(1000) |> trunc()
+  )
+```
+
+```elixir
+[{"amount_usdt", amount_usdt}] = :rpc.call(node, :ets, :lookup, [:ethusdt_size, "amount_usdt"])
+[{"amount_eth", amount_eth}] = :rpc.call(node, :ets, :lookup, [:ethusdt_size, "amount_eth"])
+
+[{"amount_borrowed_eth", amount_borrowed_eth}] =
+  :rpc.call(node, :ets, :lookup, [:ethusdt_size, "amount_borrowed_eth"])
+
+[{"price", price_eth}] = :rpc.call(node, :ets, :lookup, [:ethusdt_size, "price"])
+
+equiv =
+  amount_usdt + amount_eth * String.to_float(price_eth) +
+    (amount_usdt - amount_borrowed_eth * String.to_float(price_eth))
+
+point =
+  %{"USDT equivalent" => equiv}
+  |> Map.new()
+  |> Map.put("Timestamp", DateTime.to_string(DateTime.utc_now()))
+```
+
+This is not too informative, let us focus on USDT equivalent of the account
+
+```elixir
+widget =
+  Vl.new(width: 600, height: 400, padding: 20)
+  |> Vl.repeat(
+    [layer: ["USDT equivalent"]],
+    Vl.new()
+    |> Vl.mark(:line)
+    |> Vl.encode_field(:x, "Timestamp", title: "Time", scale: [type: "time"])
+    |> Vl.encode_repeat(:y, :layer,
+      type: :quantitative,
+      title: "Amount of USDT in Account",
+      scale: [domain: [99.55, 100.5]]
+    )
+    |> Vl.encode(:color, datum: [repeat: :layer], type: :nominal)
+  )
+  |> Kino.VegaLite.new()
+  |> tap(&Kino.render/1)
+
+Kino.VegaLite.periodically(widget, 100, 1, fn i ->
+  [{"amount_usdt", amount_usdt}] = :rpc.call(node, :ets, :lookup, [:ethusdt_size, "amount_usdt"])
+  [{"amount_eth", amount_eth}] = :rpc.call(node, :ets, :lookup, [:ethusdt_size, "amount_eth"])
+
+  [{"amount_borrowed_eth", amount_borrowed_eth}] =
+    :rpc.call(node, :ets, :lookup, [:ethusdt_size, "amount_borrowed_eth"])
+
+  [{"price", price_eth}] = :rpc.call(node, :ets, :lookup, [:ethusdt_size, "price"])
+
+  short_sale_component =
+    case amount_borrowed_eth do
+      0 -> 0
+      _any -> amount_usdt - amount_borrowed_eth * String.to_float(price_eth)
+    end
+
+  equiv = amount_usdt + amount_eth * String.to_float(price_eth) + short_sale_component
+
+  point =
+    %{"USDT equivalent" => equiv}
+    |> Map.new()
+    |> Map.put("Timestamp", DateTime.to_string(DateTime.utc_now()))
+
+  Kino.VegaLite.push(widget, point, window: 1000)
+  {:cont, i + 1}
+end)
+```
