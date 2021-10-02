@@ -1,19 +1,8 @@
 <!-- livebook:{"autosave_interval_s":30} -->
 
-# Visualizing trades
+# Elixir for Digital Hedge Fund demo
 
-## Import plotting libraries
-
-```elixir
-Mix.install([
-  {:vega_lite, "~> 0.1.0"},
-  {:kino, "~> 0.3.0"}
-])
-```
-
-```elixir
-alias VegaLite, as: Vl
-```
+## Connect to a remote elixir shell
 
 Start an elixir shell with a name attached to it using the following syntax:
 
@@ -60,6 +49,54 @@ Let us see the nodes that are currently connected to this session:
 Node.list(:connected)
 ```
 
+## Resilience
+
+Murder a PID, see what happens
+
+## Operability
+
+Manually restarting a proccess (with updated instructions)
+
+## Extendability
+
+Having several instances running in parallel
+
+## Monitorability
+
+1. LiveDashboard (select the fine points to focus upon)
+2. Erlang observer (select the fine points like supervision tree)
+
+```elixir
+:rpc.call(node, :observer, :start, [])
+```
+
+## Interoperability
+
+This sections aims to demonstrate the interoperability of Elixir stack and Python stack for data science applications. For this purpose, a demo was chosen to showcase a resemblance of a Digital Hedge Fund pipeline.
+There are following steps in the pipeline:
+
+1. Streaming data collection (Binance Websocket API, WebSockex) - Elixir
+2. Data batching (Broadway) - Elixir
+3. Data interchange (Port) - Elixir <-> Python
+4. Feature engineering - Python
+5. Model inference - Python
+6. Data interchange (Port) - Python <-> Elixir
+7. Order execution, paper trading (ETS) - Elixir
+8. Performance visualization (Livebook, VegaLite, Kino) - Elixir
+
+## 8. Performance Visualization
+
+```elixir
+Mix.install([
+  {:vega_lite, "~> 0.1.0"},
+  {:kino, "~> 0.3.0"}
+])
+```
+
+```elixir
+alias VegaLite, as: Vl
+```
+
 Having successfully connected to a remote shell, let's try to see that we are able to get spot price of ETH:
 
 ```elixir
@@ -95,40 +132,6 @@ Kino.VegaLite.periodically(widget, 50, 1, fn i ->
   Kino.VegaLite.push(widget, point, window: 1000)
   {:cont, i + 1}
 end)
-```
-
-```elixir
-time = Time.truncate(Time.utc_now(), :millisecond)
-datetime_object = Map.new()
-datetime_object = Map.put(datetime_object, :hour, time.hour)
-datetime_object = Map.put(datetime_object, :minute, time.minute)
-datetime_object = Map.put(datetime_object, :second, time.second)
-
-datetime_object =
-  Map.put(
-    datetime_object,
-    :millisecond,
-    Tuple.to_list(time.microsecond) |> List.first() |> Kernel./(1000) |> trunc()
-  )
-```
-
-```elixir
-[{"amount_usdt", amount_usdt}] = :rpc.call(node, :ets, :lookup, [:ethusdt_size, "amount_usdt"])
-[{"amount_eth", amount_eth}] = :rpc.call(node, :ets, :lookup, [:ethusdt_size, "amount_eth"])
-
-[{"amount_borrowed_eth", amount_borrowed_eth}] =
-  :rpc.call(node, :ets, :lookup, [:ethusdt_size, "amount_borrowed_eth"])
-
-[{"price", price_eth}] = :rpc.call(node, :ets, :lookup, [:ethusdt_size, "price"])
-
-equiv =
-  amount_usdt + amount_eth * String.to_float(price_eth) +
-    (amount_usdt - amount_borrowed_eth * String.to_float(price_eth))
-
-point =
-  %{"USDT equivalent" => equiv}
-  |> Map.new()
-  |> Map.put("Timestamp", DateTime.to_string(DateTime.utc_now()))
 ```
 
 This is not too informative, let us focus on USDT equivalent of the account
