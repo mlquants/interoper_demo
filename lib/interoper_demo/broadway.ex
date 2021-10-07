@@ -10,19 +10,28 @@ defmodule InteroperDemo.Broadway do
 
   require Logger
 
-  def table_init(name, <<base_coin::binary-size(3)>> <> quote_coin = _ticker) do
+  @path_to_python_script Path.relative_to_cwd("lib/python/predict.py")
+
+  def table_init(name, <<base_coin::binary-size(3)>> <> quote_coin = _ticker, medio_name) do
     :ets.new(name, [:named_table, :public])
     :ets.insert(name, {"amount_" <> base_coin, 0})
     :ets.insert(name, {"amount_" <> quote_coin, 100})
-    :ets.insert(name, {"amount_borrowed_" <> base_coin, 0})
+    :ets.insert(name, {"amount_borrowed_" <> quote_coin, 0})
+    :ets.insert(name, {"medio_name", medio_name})
+    :ets.insert(name, {"commission", 0.001})
+    :ets.insert(name, {"previous_order", 0})
+    :ets.insert(name, {"amount_to_repay_" <> base_coin, 0})
     name
   end
 
   def start_link(opts) do
+    {:ok, medio_name} = Medio.start(Medio.Primo, "python", @path_to_python_script, "model foo")
+
+
     table =
       opts
       |> Keyword.fetch!(:name)
-      |> table_init(Keyword.fetch!(opts, :ticker))
+      |> table_init(Keyword.fetch!(opts, :ticker), medio_name)
 
     agg_type = opts |> Keyword.fetch!(:agg_type)
 
@@ -113,15 +122,42 @@ defmodule InteroperDemo.Broadway do
 
     file = File.open!(filepath, [:append, :utf8])
 
-    messages
+    row = messages
     |> Enum.map(fn e -> e.data end)
     |> aggregate_row_from_batch(agg_type)
+
+    row
     |> append_row_to_csv(file)
 
-    order = TradingCycle.random_order_generation()
+    order = obtain_order(agg_type, table, row)
     TradingCycle.execute_order(order, table, ticker)
 
     messages
+  end
+
+  def obtain_order() do
+    TradingCycle.random_order_generation()
+  end
+
+  def preprocess_row("time", [values] = _row) do
+    ["open", "high", "low", "close", "volume", "timestamp", "b2s", "batch_len"]
+    |> Enum.zip(values) |> Enum.into(%{})
+  end
+
+  def preprocess_row("size", [values] = _row) do
+    ["open", "high", "low", "close", "volume", "timestamp", "b2s"]
+    |> Enum.zip(values) |> Enum.into(%{})
+  end
+
+  def obtain_order(agg_type, table, row) do
+    row = preprocess_row(agg_type, row)
+    [{"medio_name", name}] = :ets.lookup(table, "medio_name")
+    pred = Medio.predict(name, row)
+    response = case pred do
+      {:ok, %{"prediction" => order }} -> order
+      resp -> resp |> IO.inspect(label: "malformed medio response")
+    end
+    response
   end
 
   def transform(event, _opts) do
