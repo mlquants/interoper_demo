@@ -32,5 +32,4 @@ defmodule InteroperDemo.Aggregator do
 
     row
   end
-
 end

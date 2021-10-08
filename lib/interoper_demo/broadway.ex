@@ -15,10 +15,8 @@ defmodule InteroperDemo.Broadway do
 
   @path_to_python_script Path.relative_to_cwd("lib/python/predict.py")
 
-
   def start_link(opts) do
     {:ok, medio_name} = Medio.start(Medio.Primo, "python", @path_to_python_script, "model foo")
-
 
     table =
       opts
@@ -33,7 +31,7 @@ defmodule InteroperDemo.Broadway do
           [default: [concurrency: 1, batch_size: 1_000_000, batch_timeout: :timer.minutes(1)]]
 
         "size" ->
-          [default: [concurrency: 1, batch_size: 100, batch_timeout: :timer.hours(1)]]
+          [default: [concurrency: 1, batch_size: 1000, batch_timeout: :timer.hours(1)]]
       end
 
     Broadway.start_link(__MODULE__,
@@ -70,13 +68,12 @@ defmodule InteroperDemo.Broadway do
         _batch_info,
         %{table: table, filepath: filepath, agg_type: agg_type, ticker: ticker} = _context
       ) do
-
     Logger.info("processing batch of #{length(messages)}")
 
-
-    row = messages
-    |> Enum.map(fn e -> e.data end)
-    |> Aggregator.aggregate_row_from_batch(agg_type)
+    row =
+      messages
+      |> Enum.map(fn e -> e.data end)
+      |> Aggregator.aggregate_row_from_batch(agg_type)
 
     Utils.append_row_to_csv(row, filepath)
 

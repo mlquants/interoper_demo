@@ -7,9 +7,9 @@ defmodule InteroperDemo.PaperTrading do
     [{"amount_" <> ^quote_coin, amount_quote}] = :ets.lookup(table, "amount_" <> quote_coin)
     [{"commission", commission}] = :ets.lookup(table, "commission")
     [{"previous_order", order}] = :ets.lookup(table, "previous_order")
+
     [{"amount_to_repay_" <> ^base_coin, amount_to_repay}] =
       :ets.lookup(table, "amount_to_repay_" <> base_coin)
-
 
     [{"amount_borrowed_" <> ^quote_coin, amount_borrowed}] =
       :ets.lookup(table, "amount_borrowed_" <> quote_coin)
@@ -24,25 +24,33 @@ defmodule InteroperDemo.PaperTrading do
     |> Map.put(:amount_to_repay, amount_to_repay)
   end
 
-  def cash_flow_from_sell(:no_commission,
+  def cash_flow_from_sell(
+        :no_commission,
         %{amount_to_repay: amount_to_repay, amount_borrowed: amount_borrowed, price: price} =
           _prices_amounts
       ) do
     amount_borrowed - amount_to_repay * price
   end
 
-  def cash_flow_from_sell(:with_commission,
-        %{amount_to_repay: amount_to_repay, amount_borrowed: amount_borrowed, price: price, commission: commission} =
-          _prices_amounts
+  def cash_flow_from_sell(
+        :with_commission,
+        %{
+          amount_to_repay: amount_to_repay,
+          amount_borrowed: amount_borrowed,
+          price: price,
+          commission: commission
+        } = _prices_amounts
       ) do
-        (1-commission) * amount_borrowed - amount_to_repay * price
-      end
+    (1 - commission) * amount_borrowed - amount_to_repay * price
+  end
 
   def flatten_all(:buy, table, base_coin, quote_coin, prices_amounts) do
-
     new_amount_no_commission = prices_amounts[:amount_base] * prices_amounts[:price]
-    new_amount_with_commission = (1-prices_amounts[:commission]) * new_amount_no_commission
-    Logger.info("Flatten new amount no commission: #{new_amount_no_commission}, flatten new amount with commission: #{new_amount_with_commission}")
+    new_amount_with_commission = (1 - prices_amounts[:commission]) * new_amount_no_commission
+
+    Logger.info(
+      "Flatten new amount no commission: #{new_amount_no_commission}, flatten new amount with commission: #{new_amount_with_commission}"
+    )
 
     :ets.insert(
       table,
@@ -56,10 +64,15 @@ defmodule InteroperDemo.PaperTrading do
     :ets.insert(table, {"amount_borrowed_" <> quote_coin, 0})
     :ets.insert(table, {"amount_to_repay_" <> base_coin, 0})
 
-    new_amount_no_commission = prices_amounts[:amount_quote] + cash_flow_from_sell(:no_commission, prices_amounts)
-    new_amount_with_commission = prices_amounts[:amount_quote] + cash_flow_from_sell(:with_commission, prices_amounts)
-    Logger.info("Flatten new amount no commission: #{new_amount_no_commission}, flatten new amount with commission: #{new_amount_with_commission}")
+    new_amount_no_commission =
+      prices_amounts[:amount_quote] + cash_flow_from_sell(:no_commission, prices_amounts)
 
+    new_amount_with_commission =
+      prices_amounts[:amount_quote] + cash_flow_from_sell(:with_commission, prices_amounts)
+
+    Logger.info(
+      "Flatten new amount no commission: #{new_amount_no_commission}, flatten new amount with commission: #{new_amount_with_commission}"
+    )
 
     :ets.insert(
       table,
@@ -89,8 +102,11 @@ defmodule InteroperDemo.PaperTrading do
     :ets.insert(table, {"amount_" <> quote_coin, 0})
 
     new_amount_no_commission = prices_amounts[:amount_quote] / prices_amounts[:price]
-    new_amount_with_commission = (1-prices_amounts[:commission]) * new_amount_no_commission
-    Logger.info("New amount no commission: #{new_amount_no_commission}, new amount with commission: #{new_amount_with_commission}")
+    new_amount_with_commission = (1 - prices_amounts[:commission]) * new_amount_no_commission
+
+    Logger.info(
+      "New amount no commission: #{new_amount_no_commission}, new amount with commission: #{new_amount_with_commission}"
+    )
 
     :ets.insert(
       table,
@@ -103,13 +119,17 @@ defmodule InteroperDemo.PaperTrading do
 
     new_amount_no_commission = prices_amounts[:amount_quote]
     amount_to_repay = prices_amounts[:amount_quote] / prices_amounts[:price]
-    new_amount_with_commission = (1-prices_amounts[:commission]) * new_amount_no_commission
-    Logger.info("New amount no commission: #{new_amount_no_commission}, new amount with commission: #{new_amount_with_commission}")
+    new_amount_with_commission = (1 - prices_amounts[:commission]) * new_amount_no_commission
+
+    Logger.info(
+      "New amount no commission: #{new_amount_no_commission}, new amount with commission: #{new_amount_with_commission}"
+    )
 
     :ets.insert(
       table,
       {"amount_borrowed_" <> quote_coin, new_amount_with_commission}
     )
+
     :ets.insert(
       table,
       {"amount_to_repay_" <> base_coin, amount_to_repay}
@@ -133,9 +153,13 @@ defmodule InteroperDemo.PaperTrading do
     log_amounts(table, ticker, order, "end")
   end
 
-  def log_amounts(table, <<base_coin::binary-size(3)>> <> quote_coin = _ticker, order, label \\ "") do
+  def log_amounts(
+        table,
+        <<base_coin::binary-size(3)>> <> quote_coin = _ticker,
+        order,
+        label \\ ""
+      ) do
     prices_amounts = get_prices_amounts(table, base_coin, quote_coin)
     Logger.info("Amounts: #{inspect(prices_amounts)}, order: #{order}, label: #{label}")
   end
-
 end

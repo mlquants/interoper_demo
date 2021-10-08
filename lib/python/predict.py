@@ -1,10 +1,15 @@
 import os, sys
 import random
+import pandas as pd
 
 from struct import unpack, pack
 import msgpack
 
+from feature_transformation import FeatureTransformerInference
+from prediction_client import RandomForestClient
+
 UUID4_SIZE = 16
+
 
 # setup of FD 3 for input (instead of stdin)
 # FD 4 for output (instead of stdout)
@@ -41,24 +46,23 @@ def write_result(output, frame_id, data):
     output.flush()
 
 
-def init(*init_arguments):
+def init(*init_arguments) -> dict:
+    # TODO: pass initial arguments from elixir if enough time is given
     # we can load model based on values passed in init_arguments and store it as a context
-    return {"init_arguments": init_arguments}
+    fti = FeatureTransformerInference()
+    r = RandomForestClient()
+    return {"model": r, "feature_transformer": fti}
+    # return {"init_arguments": init_arguments}
 
 
-def return_stub():
-    {"success": True,
-    "prediction": "Partial clouds",
-    "based_on_input": msg,
-    "context": context}
-
-
-def do_predict(data: dict, context) -> dict:
-    prediction = random.choice([-1,0,1])
+def do_predict(data: dict, context: dict) -> dict:
+    # prediction = random.choice([-1, 0, 1])
+    feature_vector = context["feature_transformer"].transform_observation_to_feature_vector(data)
+    prediction = int(context["model"].predict(feature_vector)[0])
     return {"success": True, "prediction": prediction}
 
 
-def predict(msg: dict, context: dict):
+def predict(msg: dict, context: dict) -> dict:
     # we can use initialized model from context
     data = msg.get("data", {})
     print(f"Python side print: {data}")

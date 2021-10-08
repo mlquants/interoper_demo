@@ -7,8 +7,8 @@ defmodule InteroperDemo.Application do
 
   @impl true
   def start(_type, _args) do
-    agg_type = "time"
-    # agg_type = "size"
+    # agg_type = "time"
+    agg_type = "size"
     ticker = "ethusdt"
     # ticker = "btcusdt"
     # ticker = "ethbtc"
