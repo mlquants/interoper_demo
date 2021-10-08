@@ -1,5 +1,20 @@
 # Elixir for Digital Hedge Fund demo
 
+## Resilience, Operability, Extendability
+
+1. Spawn 10k parallel processes doing some random shit
+2. Update a selected process with new instructions in runtime, make it overload and run it
+3. Murder a supervisor, see what happens
+
+## Monitorability
+
+1. LiveDashboard (select the fine points to focus upon)
+2. Erlang observer (select the fine points like supervision tree)
+
+```elixir
+:rpc.call(node, :observer, :start, [])
+```
+
 ## Connect to a remote elixir shell
 
 Start an elixir shell with a name attached to it using the following syntax:
@@ -45,25 +60,6 @@ Let us see the nodes that are currently connected to this session:
 
 ```elixir
 Node.list(:connected)
-```
-
-## Resilience, Operability, Extendability
-
-```elixir
-
-```
-
-1. Spawn 10k parallel processes doing some random shit
-2. Update a selected process with new instructions in runtime, make it overload and run it
-3. Murder a supervisor, see what happens
-
-## Monitorability
-
-1. LiveDashboard (select the fine points to focus upon)
-2. Erlang observer (select the fine points like supervision tree)
-
-```elixir
-:rpc.call(node, :observer, :start, [])
 ```
 
 ## Interoperability

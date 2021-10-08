@@ -1,4 +1,4 @@
-defmodule InteroperDemo.TradingCycle do
+defmodule InteroperDemo.PaperTrading do
   require Logger
 
   def get_prices_amounts(table, base_coin, quote_coin) do
@@ -23,9 +23,6 @@ defmodule InteroperDemo.TradingCycle do
     |> Map.put(:order, order)
     |> Map.put(:amount_to_repay, amount_to_repay)
   end
-
-  # TODO: debug commission on paper
-  # TODO: implement staying in position for consecutive orders that match
 
   def cash_flow_from_sell(:no_commission,
         %{amount_to_repay: amount_to_repay, amount_borrowed: amount_borrowed, price: price} =
@@ -141,7 +138,4 @@ defmodule InteroperDemo.TradingCycle do
     Logger.info("Amounts: #{inspect(prices_amounts)}, order: #{order}, label: #{label}")
   end
 
-  def random_order_generation() do
-    Enum.random([1, 0, -1])
-  end
 end

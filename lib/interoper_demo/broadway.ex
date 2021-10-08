@@ -6,23 +6,15 @@ defmodule InteroperDemo.Broadway do
 
   alias Broadway.Message
   alias InteroperDemo.Queue
-  alias InteroperDemo.TradingCycle
+  alias InteroperDemo.PaperTrading
+  alias InteroperDemo.Aggregator
+  alias InteroperDemo.Utils
+  alias InteroperDemo.Interchange
 
   require Logger
 
   @path_to_python_script Path.relative_to_cwd("lib/python/predict.py")
 
-  def table_init(name, <<base_coin::binary-size(3)>> <> quote_coin = _ticker, medio_name) do
-    :ets.new(name, [:named_table, :public])
-    :ets.insert(name, {"amount_" <> base_coin, 0})
-    :ets.insert(name, {"amount_" <> quote_coin, 100})
-    :ets.insert(name, {"amount_borrowed_" <> quote_coin, 0})
-    :ets.insert(name, {"medio_name", medio_name})
-    :ets.insert(name, {"commission", 0.001})
-    :ets.insert(name, {"previous_order", 0})
-    :ets.insert(name, {"amount_to_repay_" <> base_coin, 0})
-    name
-  end
 
   def start_link(opts) do
     {:ok, medio_name} = Medio.start(Medio.Primo, "python", @path_to_python_script, "model foo")
@@ -31,7 +23,7 @@ defmodule InteroperDemo.Broadway do
     table =
       opts
       |> Keyword.fetch!(:name)
-      |> table_init(Keyword.fetch!(opts, :ticker), medio_name)
+      |> Utils.table_init(Keyword.fetch!(opts, :ticker), medio_name)
 
     agg_type = opts |> Keyword.fetch!(:agg_type)
 
@@ -71,46 +63,6 @@ defmodule InteroperDemo.Broadway do
     message
   end
 
-  def aggregate_row_from_batch(batch, agg_type) do
-    prices = batch |> Enum.map(fn %{"p" => price} -> String.to_float(price) end)
-
-    open = List.first(prices)
-    close = List.last(prices)
-    high = Enum.max(prices)
-    low = Enum.min(prices)
-
-    volume =
-      batch
-      |> Enum.map(fn %{"p" => price, "q" => quantity} ->
-        String.to_float(price) * String.to_float(quantity)
-      end)
-      |> Enum.sum()
-
-    timestamp =
-      batch
-      |> Enum.map(fn %{"T" => t} -> t end)
-      |> List.first()
-
-    buy_to_sell_ratio =
-      batch
-      |> Enum.map(fn %{"m" => buy} -> buy end)
-      |> Enum.count(fn x -> x end)
-
-    row =
-      case agg_type do
-        "time" -> [[open, high, low, close, volume, timestamp, buy_to_sell_ratio, length(batch)]]
-        "size" -> [[open, high, low, close, volume, timestamp, buy_to_sell_ratio]]
-      end
-
-    row
-  end
-
-  def append_row_to_csv(row, file) do
-    row
-    |> CSV.encode()
-    |> Enum.each(&IO.write(file, &1))
-  end
-
   @impl true
   def handle_batch(
         :default,
@@ -118,46 +70,20 @@ defmodule InteroperDemo.Broadway do
         _batch_info,
         %{table: table, filepath: filepath, agg_type: agg_type, ticker: ticker} = _context
       ) do
+
     Logger.info("processing batch of #{length(messages)}")
 
-    file = File.open!(filepath, [:append, :utf8])
 
     row = messages
     |> Enum.map(fn e -> e.data end)
-    |> aggregate_row_from_batch(agg_type)
+    |> Aggregator.aggregate_row_from_batch(agg_type)
 
-    row
-    |> append_row_to_csv(file)
+    Utils.append_row_to_csv(row, filepath)
 
-    order = obtain_order(agg_type, table, row)
-    TradingCycle.execute_order(order, table, ticker)
+    order = Interchange.obtain_order(agg_type, table, row)
+    PaperTrading.execute_order(order, table, ticker)
 
     messages
-  end
-
-  def obtain_order() do
-    TradingCycle.random_order_generation()
-  end
-
-  def preprocess_row("time", [values] = _row) do
-    ["open", "high", "low", "close", "volume", "timestamp", "b2s", "batch_len"]
-    |> Enum.zip(values) |> Enum.into(%{})
-  end
-
-  def preprocess_row("size", [values] = _row) do
-    ["open", "high", "low", "close", "volume", "timestamp", "b2s"]
-    |> Enum.zip(values) |> Enum.into(%{})
-  end
-
-  def obtain_order(agg_type, table, row) do
-    row = preprocess_row(agg_type, row)
-    [{"medio_name", name}] = :ets.lookup(table, "medio_name")
-    pred = Medio.predict(name, row)
-    response = case pred do
-      {:ok, %{"prediction" => order }} -> order
-      resp -> resp |> IO.inspect(label: "malformed medio response")
-    end
-    response
   end
 
   def transform(event, _opts) do
