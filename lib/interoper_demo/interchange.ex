@@ -1,9 +1,8 @@
 defmodule InteroperDemo.Interchange do
   require Logger
-  alias InteroperDemo.PaperTrading
 
   def obtain_order() do
-    PaperTrading.random_order_generation()
+    random_order_generation()
   end
 
   def random_order_generation() do

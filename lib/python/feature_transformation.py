@@ -98,8 +98,10 @@ class FeatureTransformerTraining(FeatureTransformer):
     def split_train_test(self) -> Tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]:
         self.preprocess()
         self.df.dropna(inplace=True)
+        self.df.replace([np.inf], 100000, inplace=True)
         y = self.df["ss_next"]
         X = self.df.drop(columns=["ss_next"])
+        self.df.to_csv("training.csv")
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=self.test_size,
                                                             random_state=self.random_state,
                                                             shuffle=False)

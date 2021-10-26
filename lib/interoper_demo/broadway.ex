@@ -31,7 +31,8 @@ defmodule InteroperDemo.Broadway do
           [default: [concurrency: 1, batch_size: 1_000_000, batch_timeout: :timer.minutes(1)]]
 
         "size" ->
-          [default: [concurrency: 1, batch_size: 1000, batch_timeout: :timer.hours(1)]]
+          [default: [concurrency: 1, batch_size: 100, batch_timeout: :timer.hours(1)]]
+          # [default: [concurrency: 1, batch_size: 1000, batch_timeout: :timer.hours(1)]]
       end
 
     Broadway.start_link(__MODULE__,
@@ -75,7 +76,7 @@ defmodule InteroperDemo.Broadway do
       |> Enum.map(fn e -> e.data end)
       |> Aggregator.aggregate_row_from_batch(agg_type)
 
-    Utils.append_row_to_csv(row, filepath)
+    # Utils.append_row_to_csv(row, filepath)
 
     order = Interchange.obtain_order(agg_type, table, row)
     PaperTrading.execute_order(order, table, ticker)
