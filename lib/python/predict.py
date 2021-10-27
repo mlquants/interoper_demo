@@ -44,14 +44,12 @@ def write_result(output, frame_id, data):
     output.flush()
 
 
-def init(*init_arguments) -> dict:
-    # TODO: pass initial arguments from elixir if enough time is given
+def init(args) -> dict:
     # we can load model based on values passed in init_arguments and store it as a context
-    fti = FeatureTransformerInference()
-    # client = RandomForestClient()
-    client = RandomClient()
+    fti = FeatureTransformerInference(fname=args[0])
+    client = RandomForestClient(fname=args[1])
+    # client = RandomClient()
     return {"model": client, "feature_transformer": fti}
-    # return {"init_arguments": init_arguments}
 
 
 def do_predict(data: dict, context: dict) -> dict:
@@ -73,10 +71,10 @@ def predict(msg: dict, context: dict) -> dict:
         return do_predict(data, context)
 
 
-def run(_, *init_arguments):
+def run(args):
     input_f, output_f = setup_io()
 
-    context = init(*init_arguments)
+    context = init(args[1].split(" "))
 
     while True:
         msg = read_message(input_f)

@@ -16,7 +16,9 @@ defmodule InteroperDemo.Broadway do
   @path_to_python_script Path.relative_to_cwd("lib/python/predict.py")
 
   def start_link(opts) do
-    {:ok, medio_name} = Medio.start(Medio.Primo, "python", @path_to_python_script, "model foo")
+    observations_cache_file = opts |> Keyword.fetch!(:observations_cache_file)
+    model_pickle = opts |> Keyword.fetch!(:model_pickle)
+    {:ok, medio_name} = Medio.start(Medio.Primo, "python", @path_to_python_script, "#{observations_cache_file} #{model_pickle}")
 
     table =
       opts
@@ -24,6 +26,7 @@ defmodule InteroperDemo.Broadway do
       |> Utils.table_init(Keyword.fetch!(opts, :ticker), medio_name)
 
     agg_type = opts |> Keyword.fetch!(:agg_type)
+    batch_size = opts |> Keyword.fetch!(:batch_size)
 
     batchers =
       case agg_type do
@@ -31,7 +34,7 @@ defmodule InteroperDemo.Broadway do
           [default: [concurrency: 1, batch_size: 1_000_000, batch_timeout: :timer.minutes(1)]]
 
         "size" ->
-          [default: [concurrency: 1, batch_size: 100, batch_timeout: :timer.hours(1)]]
+          [default: [concurrency: 1, batch_size: batch_size, batch_timeout: :timer.hours(1)]]
           # [default: [concurrency: 1, batch_size: 1000, batch_timeout: :timer.hours(1)]]
       end
 
@@ -45,7 +48,9 @@ defmodule InteroperDemo.Broadway do
         table: table,
         filepath: opts |> Keyword.fetch!(:filepath),
         agg_type: agg_type,
-        ticker: opts |> Keyword.fetch!(:ticker)
+        ticker: opts |> Keyword.fetch!(:ticker),
+        persist?: opts |> Keyword.fetch!(:persist?),
+        only_gather?: opts |> Keyword.fetch!(:only_gather?)
       },
       processors: [default: [concurrency: 3]],
       batchers: batchers
@@ -67,7 +72,14 @@ defmodule InteroperDemo.Broadway do
         :default,
         messages,
         _batch_info,
-        %{table: table, filepath: filepath, agg_type: agg_type, ticker: ticker} = _context
+        %{
+          table: table,
+          filepath: filepath,
+          agg_type: agg_type,
+          ticker: ticker,
+          persist?: persist?,
+          only_gather?: only_gather?
+        } = _context
       ) do
     Logger.info("processing batch of #{length(messages)}")
 
@@ -76,10 +88,14 @@ defmodule InteroperDemo.Broadway do
       |> Enum.map(fn e -> e.data end)
       |> Aggregator.aggregate_row_from_batch(agg_type)
 
-    # Utils.append_row_to_csv(row, filepath)
+    if persist? do
+      Utils.append_row_to_csv(row, filepath)
+    end
 
-    order = Interchange.obtain_order(agg_type, table, row)
-    PaperTrading.execute_order(order, table, ticker)
+    if not only_gather? do
+      order = Interchange.obtain_order(agg_type, table, row)
+      PaperTrading.execute_order(order, table, ticker)
+    end
 
     messages
   end

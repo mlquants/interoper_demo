@@ -20,7 +20,8 @@ class RandomClient(Client):
 
 
 class RandomForestClient(Client):
-    def __init__(self, num_estimators: int = 3000, max_depth: int = 4, mode: str = "inference"):
+    def __init__(self, num_estimators: int = 3000, max_depth: int = 4, mode: str = "inference", fname: str = "rf_model.pickle"):
+        self.fname = fname
         if mode == "inference":
             self.load()
         else:
@@ -29,13 +30,13 @@ class RandomForestClient(Client):
     def train(self, x_tr, y_tr):
         self.model.fit(x_tr, y_tr)
 
-    def save(self, fname: str = "rf_model.pickle"):
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), fname)
+    def save(self):
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), self.fname)
         with open(path, 'wb') as fh:
             pickle.dump(self.model, fh)
 
-    def load(self, fname: str = "rf_model.pickle"):
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), fname)
+    def load(self):
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), self.fname)
         with open(path, 'rb') as fh:
             self.model = pickle.load(fh)
 
