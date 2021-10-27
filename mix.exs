@@ -27,7 +27,7 @@ defmodule InteroperDemo.MixProject do
       {:gen_stage, "~> 1.1.1"},
       {:broadway, "~> 1.0.0"},
       {:csv, "~> 2.4"},
-      {:medio, path: "/home/andriy/Code/VSCodeProjects/medio"},
+      {:medio, github: "mlquants/medio"},
       {:credo, "~> 1.5", only: [:test, :dev], runtime: false}
     ]
   end
